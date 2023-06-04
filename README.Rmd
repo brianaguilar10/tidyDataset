@@ -1,0 +1,76 @@
+## README
+
+This R Script is used to generate a tidy dataset containing the average value of a given feature per activity and per subjects.
+
+The script file named *run_analysis.R* and contains 6 parts:
+
+1. Initializing the dataset
+2. Combination of train and test data
+3. Extraction of the `mean()` and `std()` features of the dataset
+4. Addition of descriptive activity label to the dataset
+5. Average the feature per activity and per subject
+6. Generation of a .txt file of the *tidy* dataset
+
+## 1.) Initializing the dataset
+
+The provided dataset was imported to R environment using the `read.table()` function. The feature and the training and testing data for the subjects, features, and labels were read from the text files and stored as a data frame. 
+
+```r
+features_list <- read.table('features.txt')
+features_list <- features_list[,2]
+subject_test <- read.table('subject_test.txt', col.names = 'Subject')
+x_test <- read.table('X_test.txt', col.names = features_list)
+y_test <- read.table('Y_test.txt', col.names = 'Label')
+subject_train <- read.table('subject_train.txt', col.names = 'Subject')
+x_train <- read.table('X_train.txt', col.names = features_list)
+y_train <- read.table('Y_train.txt', col.names = 'Label')
+```
+
+## 2.) Combination of train and test data
+
+Once the data were initialized into data frames, the training and testing data were merged together using the `rbind()` function where the two data frames were concatenated vertically essentially combining the two datasets together.
+
+```r
+x <- rbind(x_test,x_train)
+y <- rbind(y_test,y_train)
+subject <- rbind(subject_test,subject_train)
+```
+
+## 3.) Extraction of the `mean()` and `std()` features of the dataset
+
+The mean and standard deviation features of the dataset were extracted by locating the character `"mean."` and `"std."` using the `grepl()` function in the list of column names found using the `colnames()` function. In this way, the columns were filtered by showing only the mean and standard deviation of the features through logical indexing to the original dataset. Finally, they were concatenated horizontally using the `cbind()` function to create a one big filtered dataset with its corresponding subject per observation.
+
+```r
+x_mean <- x[colnames(x)[grepl("mean.", colnames(x), fixed = TRUE)]]
+x_std <- x[colnames(x)[grepl("std.", colnames(x), fixed = TRUE)]]
+x_mean_std <- cbind(subject,x_mean,x_std)
+```
+
+## 4.) Addition of descriptive activity label to the dataset
+
+The activity labels were read from the text file using the `read.table()` function. In order to give the observation labels its corresponding labels, the inner join of two data frames were implemented using the `merge()` function assigning each observation its labels. Since the *y_label* data frame has its numeric and descriptive activity label, the numeric label were dropped down from the data frame using the `subset()` function leaving only the descriptive activity label that is to be combined to the original dataset concatenated horizontally using the `cbind()` function.
+
+```r
+activity_labels <- read.table('activity_labels.txt', col.names = c("Label", "Activity"))
+y_labels <- merge(y, activity_labels, by = "Label", sort = FALSE)
+y_labels <- subset(y_labels, select = c('Activity'))
+data <- cbind(y_labels,x_mean_std)
+```
+
+## 5.) Average the feature per activity and per subject
+
+The activity column of the processed dataset where transformed into factors using the `transform()` and `factor()` functions for future processing of the dataset. Then, in order to acquire the average value of each features per activity and per subject, the `aggregate(data, FUN = "mean")` function were used applying the mean operation to the aggregation. Finally, the column names were adjusted accordingly to its correct labels.
+
+```r
+data = transform(data, Activity = factor(Activity))
+tidy <- aggregate(data[,-1:-2], by = list(data$Activity,data$Subject), FUN = 'mean')
+colnames(tidy)[1:2] <- c('Activity', 'Subjects')
+```
+
+## 6.) Generation of a .txt file of the *tidy* dataset
+
+After the generation of the tidy dataset, the data frame were now exported as a text file using the `write.table()` function with one of its arguments as `row.names = FALSE` and were named **tidy.txt**.
+
+```r
+write.table(tidy, file = 'tidy.txt', row.names = FALSE)
+```
